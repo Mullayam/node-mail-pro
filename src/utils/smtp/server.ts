@@ -13,6 +13,7 @@ const options: SMTPServerOptions = {
     allowInsecureAuth: SETTINGS.allowInsecureAuth || true,
     secure: SETTINGS.secure || false,
     logger: SETTINGS.logger || false,
+    
     // not required but nice-to-have
     banner: SETTINGS.banner || "Welcome to ENJOYS SMTP Server",
     // disable STARTTLS to allow authentication in clear text mode
@@ -56,6 +57,8 @@ const options: SMTPServerOptions = {
         // NewMailHandler.HandleMailFrom(address, session, callback);
     },
     onRcptTo(address, session, callback) {
+        Logging.dev("Mail Sent To " + address.address);
+
         // NewMailHandler.HandleMailFrom(address, session, callback);
         return callback(null)
     },
@@ -70,7 +73,10 @@ const options: SMTPServerOptions = {
 
     },
     onData(stream, session, callback) {
-        console.log("mail received")
+        Logging.dev("mail received");
+
+        
+        callback(null)
         // NewMailHandler.HandleNewMail(stream, session, callback);
     },
 
