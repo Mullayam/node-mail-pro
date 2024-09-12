@@ -28,7 +28,9 @@ const options: SMTPServerOptions = {
     // use logging of proxied client data. Only makes sense behind proxy
     // useXForward: true,
     authOptional: true,
-    handshakeTimeout: 5000,
+    handshakeTimeout: 60000,
+    socketTimeout: 60000,  // Increase socket timeout to 60 seconds
+    closeTimeout: 60000,  // Increase connection timeout to 60 seconds
     maxClients: SETTINGS.maxClients || 2500000,
     name: SETTINGS.hostname || "smtp-server",
     ...keys,
@@ -52,12 +54,12 @@ const options: SMTPServerOptions = {
         return
     },
     onMailFrom(address, session, callback) {
-        Logging.dev("Mail Sent from " + address.address);
+        Logging.dev("Mail Sender " + address.address);
         return callback(null)
         // NewMailHandler.HandleMailFrom(address, session, callback);
     },
     onRcptTo(address, session, callback) {
-        Logging.dev("Mail Sent To " + address.address);
+        Logging.dev("Mail Recipient " + address.address);
 
         // NewMailHandler.HandleMailFrom(address, session, callback);
         return callback(null)
