@@ -1,6 +1,7 @@
 import * as tls from 'tls'
-import * as fs  from 'fs'
+import * as fs from 'fs'
 import { SMTPServer, SMTPServerOptions } from 'smtp-server';
+import nodemailer from 'nodemailer'
 
 import { white } from 'colorette';
 import { SMTP_CONFIG, AUTH_CONFIG, SETTINGS_CONFIG } from './loadData';
@@ -9,11 +10,12 @@ import { Logging } from '@/logs';
 const authMethods = AUTH_CONFIG.methods.split(",").map((item: string) => item.toUpperCase())
 const { settings: SETTINGS } = SETTINGS_CONFIG
 const keys = SETTINGS.secure ? TLS_KEYS : {}
+
+
 const options: SMTPServerOptions = {
     allowInsecureAuth: SETTINGS.allowInsecureAuth || true,
     secure: SETTINGS.secure || false,
     logger: SETTINGS.logger || false,
-    
     // not required but nice-to-have
     banner: SETTINGS.banner || "Welcome to ENJOYS SMTP Server",
     // disable STARTTLS to allow authentication in clear text mode
@@ -76,39 +78,71 @@ const options: SMTPServerOptions = {
     },
     onData(stream, session, callback) {
         Logging.dev("mail received");
+        let emailData = '';
+        // Collect the entire email from the stream
+        stream.on('data', (chunk) => {
+            emailData += chunk;
+        });
+        // When the email stream is complete
+        stream.on('end', () => {
+            console.log('Received email data:', emailData);
 
-        
-        callback(null)
-        // NewMailHandler.HandleNewMail(stream, session, callback);
+            // Prepare the email to forward
+            const mailOptions = {
+                from: session.envelope.mailFrom.address,  // Original sender
+                to: session.envelope.rcptTo.map(rcpt => rcpt.address),  // Recipients
+                raw: emailData  // The full email data
+            };
+            const transporter = nodemailer.createTransport({
+                host: 'mail.enjoys.in',  // Replace with the actual SMTP server you're using to relay the email
+                // Typically 465 for SSL, or 587 for STARTTLS
+                // secure: true,  // True for SSL, false for STARTTLS
+                secure: false, //
+                auth: {
+                    user: 'mullayam06@cirrusmail.cloud',
+                    pass: 'def'
+                }
+            });
+            // Send the email using Nodemailer
+            transporter.sendMail(mailOptions, (error, info) => {
+                if (error) {
+                    console.error('Error sending email:', error);
+                    return callback(new Error('Error sending email: ' + error.message));
+                }
+                console.log('Email sent successfully:', info.response);
+                callback();  // Call this to indicate the data processing was successful
+            });
+        });
+
     },
 
 }
 const initSMTP_Server = new SMTPServer(options);
 const server = tls.createServer(options, (socket) => {
     console.log('Client connected');
-  
+
     // Send a welcome message (IMAP servers usually send a greeting when a connection is established)
     socket.write('* OK IMAP4rev1 Service Ready\r\n');
-  
+
     socket.on('data', (data) => {
-      console.log('Received:', data.toString());
-  
-      // Handle the IMAP commands (just responding to CAPABILITY for this example)
-      if (data.toString().startsWith('A001 CAPABILITY')) {
-        socket.write('* CAPABILITY IMAP4rev1 AUTH=PLAIN\r\nA001 OK CAPABILITY completed\r\n');
-      } else if (data.toString().startsWith('A002 LOGIN')) {
-        socket.write('A002 OK LOGIN completed\r\n');
-      } else {
-        socket.write('A003 BAD Command not recognized\r\n');
-      }
+        console.log('Received:', data.toString());
+
+        // Handle the IMAP commands (just responding to CAPABILITY for this example)
+        if (data.toString().startsWith('A001 CAPABILITY')) {
+            socket.write('* CAPABILITY IMAP4rev1 AUTH=PLAIN\r\nA001 OK CAPABILITY completed\r\n');
+        } else if (data.toString().startsWith('A002 LOGIN')) {
+            socket.write('A002 OK LOGIN completed\r\n');
+        } else {
+            socket.write('A003 BAD Command not recognized\r\n');
+        }
     });
-  
+
     socket.on('end', () => {
-      console.log('Client disconnected');
+        console.log('Client disconnected');
     });
-  });
-  
-  // Listen on port 993 (IMAPS)
+});
+
+// Listen on port 993 (IMAPS)
 
 class SMTP_Service {
     constructor() {
@@ -121,10 +155,10 @@ class SMTP_Service {
     }
     async init() {
         server.listen(993, () => {
-          
+
             Logging.dev(white("IMAP service running on port 993"));
 
-          });
+        });
         return initSMTP_Server.listen(SMTP_CONFIG.port, () => {
             Logging.dev(white("SMTP Server Started at " + SMTP_CONFIG.port));
         })
