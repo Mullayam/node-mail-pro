@@ -76,16 +76,16 @@ const options: SMTPServerOptions = {
         // // NewMailHandler.HandleAuthenticate(auth, session, callback);
 
     },
-    onData(stream, session, callback) {
+     onData(stream, session, callback) {
         Logging.dev("mail received");
         let emailData = '';
         // Collect the entire email from the stream
+       try {
         stream.on('data', (chunk) => {
             emailData += chunk;
         });
         // When the email stream is complete
-        stream.on('end', () => {
-            console.log('Received email data:', emailData);
+        stream.on('end', async() => {
             const fromMail = session.envelope.mailFrom as SMTPServerAddress
 
             // Prepare the email to forward
@@ -94,26 +94,24 @@ const options: SMTPServerOptions = {
                 to: session.envelope.rcptTo.map(rcpt => rcpt.address),  // Recipients
                 raw: emailData  // The full email data
             };
-            const transporter = nodemailer.createTransport({
-                host: 'mail.enjoys.in',  // Replace with the actual SMTP server you're using to relay the email
-                // Typically 465 for SSL, or 587 for STARTTLS
-                // secure: true,  // True for SSL, false for STARTTLS
-                secure: false, //
-                auth: {
-                    user: 'mullayam06@cirrusmail.cloud',
-                    pass: 'def'
-                }
+          
+            const transporter = await nodemailer.createTransport({
+                jsonTransport: true
             });
-            // Send the email using Nodemailer
+          
+            // // Send the email using Nodemailer
             transporter.sendMail(mailOptions, (error, info) => {
                 if (error) {
                     console.error('Error sending email:', error);
                     return callback(new Error('Error sending email: ' + error.message));
                 }
-                console.log('Email sent successfully:', info.response);
+                console.log('Email sent successfully:', info.messageId);
                 callback();  // Call this to indicate the data processing was successful
             });
         });
+       } catch (error) {
+        console.log(error);
+       }
 
     },
 
