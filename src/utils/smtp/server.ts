@@ -1,6 +1,6 @@
 import * as tls from 'tls'
 import * as fs from 'fs'
-import { SMTPServer, SMTPServerOptions } from 'smtp-server';
+import { SMTPServer, SMTPServerAddress, SMTPServerEnvelope, SMTPServerOptions } from 'smtp-server';
 import nodemailer from 'nodemailer'
 
 import { white } from 'colorette';
@@ -86,10 +86,11 @@ const options: SMTPServerOptions = {
         // When the email stream is complete
         stream.on('end', () => {
             console.log('Received email data:', emailData);
+            const fromMail = session.envelope.mailFrom as SMTPServerAddress
 
             // Prepare the email to forward
             const mailOptions = {
-                from: session.envelope.mailFrom.address,  // Original sender
+                from: fromMail.address,  // Original sender
                 to: session.envelope.rcptTo.map(rcpt => rcpt.address),  // Recipients
                 raw: emailData  // The full email data
             };
